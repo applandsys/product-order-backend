@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Order;
 use App\Repositories\OrderRepository;
 use App\Repositories\ProductRepository;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,7 @@ class OrderService{
                 $product = $this->productRepository->findProductById($item['product_id']);
 
                 if($product->stock_quantity >= $item['quantity']){
-                    throw ValidationException::withMessages([
+                    throw \Illuminate\Validation\ValidationException::withMessages([
                         'items'=> "Insufficient Stock Quantity for {$product->name}"
                     ]);
                 }
@@ -64,8 +65,24 @@ class OrderService{
 
     }
 
-    public function cancelOrder(array $data){
+    public function cancelOrder(Int $id){
+        return DB::transaction(function() use($id){
+            $order = $this->orderRepository->getWithItems($id);
 
+            if($order->status === "cancelled"){
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                 'status' => "Order cancelled by {$order->customer_name}"
+                ]);
+            }
+
+            foreach ($order->orderItems as $orderItem){
+                $product = $this->productRepository->findProductById($orderItem->product_id);
+                $this->productRepository->updateStock($orderItem->product_id, $product->stock_quantity - $orderItem->quantity);
+            }
+
+            return $this->orderRepository->updateStatus($id, 'cancelled');
+
+        });
     }
 
 }

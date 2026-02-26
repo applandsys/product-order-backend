@@ -30,6 +30,9 @@ class OrderRepository implements OrderRepositoryInterface{
     public function updateStatus($id, string $status)
     {
         // TODO: Implement updateStatus() method.
+        $order = $this->getOrderById($id);
+        $order->status = $status;
+        return $order->save();
     }
 
     public function getWithItems($id)
